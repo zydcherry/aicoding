@@ -18,6 +18,7 @@ CREATE TABLE subscription (
     secret_key VARCHAR(128) COMMENT '签名密钥',
     status TINYINT DEFAULT 1 COMMENT '状态: 0-禁用 1-启用',
     description VARCHAR(500) COMMENT '描述说明',
+    filter_condition JSON COMMENT '过滤条件(JSON对象,用于细粒度订阅)',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_status (status),

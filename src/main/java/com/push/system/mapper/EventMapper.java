@@ -3,6 +3,7 @@ package com.push.system.mapper;
 import com.push.system.entity.Event;
 import org.apache.ibatis.annotations.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -44,4 +45,10 @@ public interface EventMapper {
      */
     @Update("UPDATE event SET status = #{status} WHERE event_id = #{eventId}")
     int updateStatus(@Param("eventId") String eventId, @Param("status") Integer status);
+
+    /**
+     * 删除历史事件（数据清理）
+     */
+    @Delete("DELETE FROM event WHERE status = 2 AND created_at < #{beforeDate}")
+    int deleteOldEvents(@Param("beforeDate") LocalDateTime beforeDate);
 }

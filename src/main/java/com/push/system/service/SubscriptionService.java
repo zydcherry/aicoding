@@ -1,15 +1,15 @@
 package com.push.system.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.push.system.config.PushSystemProperties;
 import com.push.system.entity.Subscription;
 import com.push.system.mapper.SubscriptionMapper;
+import com.push.system.util.SubscriptionFilterUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -25,9 +25,6 @@ import java.util.stream.Collectors;
 public class SubscriptionService {
 
     private static final Logger logger = LoggerFactory.getLogger(SubscriptionService.class);
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private PushSystemProperties pushSystemProperties;
@@ -55,9 +52,19 @@ public class SubscriptionService {
     }
 
     /**
+     * 定时重建事件类型索引（每10分钟）
+     * 解决集群环境下索引不同步的问题
+     */
+    @Scheduled(fixedRate = 600000)  // 10分钟
+    public void scheduledRebuildIndex() {
+        logger.debug("定时重建事件类型索引");
+        rebuildEventTypeIndex();
+    }
+
+    /**
      * 重建事件类型索引
      */
-    private void rebuildEventTypeIndex() {
+    public void rebuildEventTypeIndex() {
         eventTypeIndex.clear();
         List<Subscription> allSubscriptions = subscriptionMapper.selectByStatusEnabled();
         for (Subscription subscription : allSubscriptions) {
@@ -148,7 +155,26 @@ public class SubscriptionService {
     }
 
     /**
-     * 根据事件类型查找订阅者
+     * 根据事件类型查找订阅者（支持过滤条件）
+     */
+    public List<Subscription> findSubscriptionsByEventType(String eventType, String eventDataJson) {
+        // 先从缓存索引查找订阅ID
+        List<Long> subscriptionIds = eventTypeIndex.get(eventType);
+        if (subscriptionIds == null || subscriptionIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 从数据库加载完整订阅信息并应用过滤条件
+        return subscriptionIds.stream()
+            .map(subscriptionMapper::selectById)
+            .filter(Objects::nonNull)
+            .filter(s -> s.getStatus() == 1)  // 确认状态
+            .filter(s -> SubscriptionFilterUtil.matches(s.getFilterCondition(), eventDataJson))  // 应用过滤条件
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * 根据事件类型查找订阅者（不带过滤）
      */
     public List<Subscription> findSubscriptionsByEventType(String eventType) {
         // 先从缓存索引查找订阅ID

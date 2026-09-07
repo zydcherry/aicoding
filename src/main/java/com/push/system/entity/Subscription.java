@@ -1,9 +1,5 @@
 package com.push.system.entity;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,15 +11,13 @@ public class Subscription {
     private Long id;
     private String subscriberName;
     private String callbackUrl;
-    private List<String> eventTypes;  // 订阅的事件类型列表
-    private String eventTypesJson;    // 数据库存储的JSON字符串
+    private List<String> eventTypes;  // 订阅的事件类型列表（使用TypeHandler自动转换）
     private String secretKey;
     private Integer status;  // 0-禁用 1-启用
     private String description;
+    private String filterCondition;  // 过滤条件JSON（可选，用于细粒度订阅）
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     // Getters and Setters
 
@@ -57,30 +51,6 @@ public class Subscription {
 
     public void setEventTypes(List<String> eventTypes) {
         this.eventTypes = eventTypes;
-        // 同时更新JSON字符串
-        if (eventTypes != null) {
-            try {
-                this.eventTypesJson = objectMapper.writeValueAsString(eventTypes);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Failed to serialize eventTypes", e);
-            }
-        }
-    }
-
-    public String getEventTypesJson() {
-        return eventTypesJson;
-    }
-
-    public void setEventTypesJson(String eventTypesJson) {
-        this.eventTypesJson = eventTypesJson;
-        // 同时解析为List
-        if (eventTypesJson != null && !eventTypesJson.isEmpty()) {
-            try {
-                this.eventTypes = objectMapper.readValue(eventTypesJson, new TypeReference<List<String>>() {});
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Failed to deserialize eventTypes", e);
-            }
-        }
     }
 
     public String getSecretKey() {
@@ -107,6 +77,14 @@ public class Subscription {
         this.description = description;
     }
 
+    public String getFilterCondition() {
+        return filterCondition;
+    }
+
+    public void setFilterCondition(String filterCondition) {
+        this.filterCondition = filterCondition;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -123,3 +101,4 @@ public class Subscription {
         this.updatedAt = updatedAt;
     }
 }
+

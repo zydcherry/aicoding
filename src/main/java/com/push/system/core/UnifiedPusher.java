@@ -2,8 +2,10 @@ package com.push.system.core;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.push.system.config.PushSystemProperties;
+import com.push.system.entity.NotificationRecord;
 import com.push.system.http.UnifiedHttpClient;
 import com.push.system.id.IdGenerator;
+import com.push.system.mapper.NotificationRecordMapper;
 import com.push.system.model.HttpResult;
 import com.push.system.model.PushMessage;
 import com.push.system.model.ThirdPartyConfig;
@@ -47,6 +49,9 @@ public class UnifiedPusher {
 
     @Autowired
     private PushSystemProperties pushSystemProperties;
+
+    @Autowired
+    private NotificationRecordMapper notificationRecordMapper;
 
     private PriorityPushQueue pushQueue;
     private ExecutorService workerPool;
@@ -245,34 +250,96 @@ public class UnifiedPusher {
      * 执行事件驱动推送
      */
     private void executePushForEvent(PushMessage message) {
+        String notificationId = null;
         try {
             // 从extInfo中解析订阅者信息
             Map<String, Object> extInfo = objectMapper.readValue(message.getExtInfo(), Map.class);
             String callbackUrl = (String) extInfo.get("callbackUrl");
             String secretKey = (String) extInfo.get("secretKey");
+            String eventId = (String) extInfo.get("eventId");
+            Long subscriptionId = getLongValue(extInfo.get("subscriptionId"));
+            notificationId = (String) extInfo.get("notificationId");
 
             if (callbackUrl == null) {
                 logger.error("事件推送失败：回调URL为空, ID: {}", message.getId());
                 return;
             }
 
-            logger.info("开始执行事件推送, ID: {}, callbackUrl: {}", message.getId(), callbackUrl);
+            // 1. 检查是否已经推送成功（幂等性）
+            if (notificationId != null) {
+                NotificationRecord existing = notificationRecordMapper.selectByNotificationId(notificationId);
+                if (existing != null && existing.getStatus() == 2) {
+                    logger.info("通知已成功推送，跳过重复推送, notificationId: {}", notificationId);
+                    return;
+                }
+            }
 
-            // 构建简单的HTTP配置
+            // 2. 创建通知记录（状态=推送中）
+            NotificationRecord record = new NotificationRecord();
+            record.setNotificationId(notificationId != null ? notificationId : "ntf_" + System.currentTimeMillis());
+            record.setEventId(eventId);
+            record.setSubscriptionId(subscriptionId);
+            record.setPushMode("EVENT");
+            record.setCallbackUrl(callbackUrl);
+            record.setRequestData(message.getContent());
+            record.setStatus(1);  // 推送中
+            record.setRetryCount(message.getRetryCount());
+            record.setCreatedAt(LocalDateTime.now());
+            record.setUpdatedAt(LocalDateTime.now());
+
+            try {
+                notificationRecordMapper.insert(record);
+            } catch (Exception e) {
+                logger.warn("插入通知记录失败（可能重复）, notificationId: {}", record.getNotificationId());
+            }
+
+            logger.info("开始执行事件推送, ID: {}, notificationId: {}, callbackUrl: {}",
+                message.getId(), notificationId, callbackUrl);
+
+            // 3. 构建简单的HTTP配置
             ThirdPartyConfig config = buildConfigForCallback(callbackUrl, secretKey);
 
-            // 调用HTTP客户端
+            // 4. 调用HTTP客户端
+            long startTime = System.currentTimeMillis();
             HttpResult result = httpClient.call(message, config);
+            int costTime = (int) (System.currentTimeMillis() - startTime);
+
+            // 5. 更新通知记录
+            record.setResponseData(result.getRawResponse());
+            record.setCostTime(costTime);
+            record.setPushedAt(LocalDateTime.now());
+            record.setUpdatedAt(LocalDateTime.now());
 
             if (result.isSuccess()) {
-                logger.info("事件推送成功, ID: {}, 耗时: {}ms", message.getId(), result.getCostTime());
+                record.setStatus(2);  // 成功
+                logger.info("事件推送成功, ID: {}, notificationId: {}, 耗时: {}ms",
+                    message.getId(), notificationId, costTime);
             } else {
-                logger.warn("事件推送失败, ID: {}, 错误: {}", message.getId(), result.getErrorMessage());
+                record.setStatus(3);  // 失败
+                record.setErrorMessage(result.getErrorMessage());
+                logger.warn("事件推送失败, ID: {}, notificationId: {}, 错误: {}",
+                    message.getId(), notificationId, result.getErrorMessage());
                 handlePushFailure(message, config, result.getErrorMessage());
             }
 
+            notificationRecordMapper.updateStatus(record);
+
         } catch (Exception e) {
             logger.error("事件推送异常, ID: " + message.getId(), e);
+
+            // 更新记录为失败
+            if (notificationId != null) {
+                try {
+                    NotificationRecord record = new NotificationRecord();
+                    record.setNotificationId(notificationId);
+                    record.setStatus(3);  // 失败
+                    record.setErrorMessage(e.getMessage());
+                    record.setUpdatedAt(LocalDateTime.now());
+                    notificationRecordMapper.updateStatus(record);
+                } catch (Exception ex) {
+                    logger.error("更新通知记录失败", ex);
+                }
+            }
         }
     }
 
@@ -281,6 +348,7 @@ public class UnifiedPusher {
      */
     private void executePushForDirect(PushMessage message) {
         String thirdPartyCode = message.getThirdPartyCode();
+        String notificationId = "ntf_direct_" + message.getId();
 
         // 获取第三方配置
         ThirdPartyConfig config = configService.getConfig(thirdPartyCode);
@@ -296,23 +364,92 @@ public class UnifiedPusher {
         }
 
         try {
-            logger.info("开始执行推送, ID: {}, 第三方: {}, 优先级: {}, 接入方式: {}",
-                message.getId(), thirdPartyCode, message.getPriority(), message.getAccessType());
+            // 1. 创建通知记录（状态=推送中）
+            NotificationRecord record = new NotificationRecord();
+            record.setNotificationId(notificationId);
+            record.setThirdPartyCode(thirdPartyCode);
+            record.setPushMode("DIRECT");
+            record.setCallbackUrl(config.getApiUrl());
+            record.setRequestData(message.getContent());
+            record.setStatus(1);  // 推送中
+            record.setRetryCount(message.getRetryCount());
+            record.setCreatedAt(LocalDateTime.now());
+            record.setUpdatedAt(LocalDateTime.now());
 
-            // 调用HTTP客户端
+            try {
+                notificationRecordMapper.insert(record);
+            } catch (Exception e) {
+                logger.warn("插入通知记录失败, notificationId: {}", notificationId);
+            }
+
+            logger.info("开始执行推送, ID: {}, notificationId: {}, 第三方: {}, 优先级: {}, 接入方式: {}",
+                message.getId(), notificationId, thirdPartyCode, message.getPriority(), message.getAccessType());
+
+            // 2. 调用HTTP客户端
+            long startTime = System.currentTimeMillis();
             HttpResult result = httpClient.call(message, config);
+            int costTime = (int) (System.currentTimeMillis() - startTime);
+
+            // 3. 更新通知记录
+            record.setResponseData(result.getRawResponse());
+            record.setCostTime(costTime);
+            record.setPushedAt(LocalDateTime.now());
+            record.setUpdatedAt(LocalDateTime.now());
 
             if (result.isSuccess()) {
-                logger.info("推送执行成功, ID: {}, 耗时: {}ms", message.getId(), result.getCostTime());
+                record.setStatus(2);  // 成功
+                logger.info("推送执行成功, ID: {}, notificationId: {}, 耗时: {}ms",
+                    message.getId(), notificationId, costTime);
             } else {
-                logger.warn("推送执行失败, ID: {}, 错误: {}", message.getId(), result.getErrorMessage());
+                record.setStatus(3);  // 失败
+                record.setErrorMessage(result.getErrorMessage());
+                logger.warn("推送执行失败, ID: {}, notificationId: {}, 错误: {}",
+                    message.getId(), notificationId, result.getErrorMessage());
                 handlePushFailure(message, config, result.getErrorMessage());
             }
 
+            notificationRecordMapper.updateStatus(record);
+
         } catch (Exception e) {
             logger.error("推送执行异常, ID: " + message.getId(), e);
+
+            // 更新记录为失败
+            try {
+                NotificationRecord record = new NotificationRecord();
+                record.setNotificationId(notificationId);
+                record.setStatus(3);  // 失败
+                record.setErrorMessage(e.getMessage());
+                record.setUpdatedAt(LocalDateTime.now());
+                notificationRecordMapper.updateStatus(record);
+            } catch (Exception ex) {
+                logger.error("更新通知记录失败", ex);
+            }
+
             handlePushFailure(message, config, e.getMessage());
         }
+    }
+
+    /**
+     * 从Map中安全获取Long值
+     */
+    private Long getLongValue(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof Long) {
+            return (Long) obj;
+        }
+        if (obj instanceof Integer) {
+            return ((Integer) obj).longValue();
+        }
+        if (obj instanceof String) {
+            try {
+                return Long.parseLong((String) obj);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /**

@@ -54,11 +54,11 @@ public class EventService {
 
         logger.info("事件发布, eventId: {}, eventType: {}, bizId: {}", eventId, eventType, bizId);
 
-        // 2. 查找订阅者
-        List<Subscription> subscriptions = subscriptionService.findSubscriptionsByEventType(eventType);
+        // 2. 查找订阅者（支持过滤条件）
+        List<Subscription> subscriptions = subscriptionService.findSubscriptionsByEventType(eventType, eventData);
 
         if (subscriptions.isEmpty()) {
-            logger.warn("事件没有订阅者, eventId: {}, eventType: {}", eventId, eventType);
+            logger.info("事件没有订阅者, eventId: {}, eventType: {}", eventId, eventType);
             event.setStatus(2);  // 已完成（无订阅者）
             event.setSubscriberCount(0);
         } else {
@@ -91,6 +91,14 @@ public class EventService {
     public void updateEventStatus(String eventId, Integer status) {
         eventMapper.updateStatus(eventId, status);
         logger.debug("更新事件状态, eventId: {}, status: {}", eventId, status);
+    }
+
+    /**
+     * 标记事件为已完成
+     */
+    public void markEventAsCompleted(String eventId) {
+        updateEventStatus(eventId, 2);
+        logger.info("事件处理完成, eventId: {}", eventId);
     }
 
     /**

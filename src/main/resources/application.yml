@@ -120,3 +120,12 @@ push:
     load-sample-data: true
     # 事件类型索引初始容量
     event-type-index-initial-capacity: 100
+
+  # 数据清理配置
+  cleanup:
+    # 是否启用数据清理
+    enabled: true
+    # 事件数据保留天数
+    event-retention-days: 30
+    # 通知记录保留天数
+    notification-retention-days: 90

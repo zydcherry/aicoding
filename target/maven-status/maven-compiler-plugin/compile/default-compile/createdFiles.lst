@@ -1,6 +1,7 @@
 com/push/system/api/EventController$EventPublishRequest.class
 com/push/system/core/UnifiedPusher.class
 com/push/system/entity/Subscription.class
+com/push/system/service/DataCleanupService.class
 com/push/system/config/PushSystemProperties$HttpConfig.class
 com/push/system/config/RedisConfig.class
 com/push/system/model/ThirdPartyConfig.class
@@ -11,8 +12,10 @@ com/push/system/api/EventController$EventPublishResponse.class
 com/push/system/api/PushController$QueueStatusResponse.class
 com/push/system/service/EventPublisher.class
 com/push/system/model/PushMessage.class
+com/push/system/util/SubscriptionFilterUtil.class
 com/push/system/model/HttpResult.class
 com/push/system/http/TemplateEngine.class
+com/push/system/mybatis/JsonListTypeHandler.class
 com/push/system/kafka/KafkaProducerService$2.class
 com/push/system/api/PushController$PushResponse.class
 com/push/system/api/EventController$EventStatusResponse.class
@@ -24,10 +27,10 @@ com/push/system/api/SubscriptionController$SubscriptionResponse.class
 com/push/system/model/PushMessage$Priority.class
 com/push/system/api/SubscriptionController.class
 com/push/system/service/ThirdPartyConfigService.class
+com/push/system/mapper/NotificationRecordMapper.class
 com/push/system/http/AuthHandler$TokenInfo.class
 com/push/system/kafka/KafkaProducerService$1.class
 com/push/system/api/SubscriptionController$SubscriptionListResponse.class
-com/push/system/entity/Subscription$1.class
 com/push/system/core/UnifiedPusher$PushWorker.class
 com/push/system/config/PushSystemProperties$KafkaConfig$TopicsConfig.class
 com/push/system/api/PushRequest.class
@@ -42,6 +45,7 @@ com/push/system/config/PushSystemProperties$SystemConfig.class
 com/push/system/config/KafkaConfig.class
 com/push/system/kafka/KafkaConsumerService.class
 com/push/system/id/IdGenerator.class
+com/push/system/entity/NotificationRecord.class
 com/push/system/PushSystemApplication.class
 com/push/system/config/PushSystemProperties.class
 com/push/system/mapper/EventMapper.class
@@ -51,6 +55,7 @@ com/push/system/entity/Event.class
 com/push/system/api/SubscriptionController$BaseResponse.class
 com/push/system/id/IdGenerator$AccessType.class
 com/push/system/api/PushController.class
+com/push/system/mybatis/JsonListTypeHandler$1.class
 com/push/system/http/UnifiedHttpClient.class
 com/push/system/mapper/SubscriptionMapper.class
 com/push/system/http/AuthHandler.class
