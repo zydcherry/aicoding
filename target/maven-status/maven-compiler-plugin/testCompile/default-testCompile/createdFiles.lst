@@ -1,0 +1,6 @@
+com/push/system/service/EventServiceTest.class
+com/push/system/id/IdGeneratorTest.class
+com/push/system/service/SubscriptionServiceTest.class
+com/push/system/api/SubscriptionControllerTest.class
+com/push/system/api/EventControllerTest.class
+com/push/system/SubscriptionPublishIntegrationTest.class

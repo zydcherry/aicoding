@@ -1,0 +1,28 @@
+-------------------------------------------------------------------------------
+Test set: com.push.system.service.EventServiceTest
+-------------------------------------------------------------------------------
+Tests run: 6, Failures: 0, Errors: 6, Skipped: 0, Time elapsed: 0.115 s <<< FAILURE! - in com.push.system.service.EventServiceTest
+testPublishEventWithNoSubscribers  Time elapsed: 0.112 s  <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.push.system.mapper.EventMapper.insert(com.push.system.entity.Event)" because "this.eventMapper" is null
+	at com.push.system.service.EventServiceTest.testPublishEventWithNoSubscribers(EventServiceTest.java:100)
+
+testGetEvent  Time elapsed: 0.001 s  <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.push.system.mapper.EventMapper.selectByEventId(String)" because "this.eventMapper" is null
+	at com.push.system.service.EventServiceTest.testGetEvent(EventServiceTest.java:139)
+
+testPublishEvent  Time elapsed: 0 s  <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.push.system.mapper.EventMapper.insert(com.push.system.entity.Event)" because "this.eventMapper" is null
+	at com.push.system.service.EventServiceTest.testPublishEvent(EventServiceTest.java:65)
+
+testPublishEventGeneratesUniqueEventIds  Time elapsed: 0.001 s  <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.push.system.mapper.EventMapper.insert(com.push.system.entity.Event)" because "this.eventMapper" is null
+	at com.push.system.service.EventServiceTest.testPublishEventGeneratesUniqueEventIds(EventServiceTest.java:152)
+
+testPublishEventWithNullBizId  Time elapsed: 0 s  <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.push.system.mapper.EventMapper.insert(com.push.system.entity.Event)" because "this.eventMapper" is null
+	at com.push.system.service.EventServiceTest.testPublishEventWithNullBizId(EventServiceTest.java:121)
+
+testPublishEventWithSingleSubscriber  Time elapsed: 0.001 s  <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.push.system.mapper.EventMapper.insert(com.push.system.entity.Event)" because "this.eventMapper" is null
+	at com.push.system.service.EventServiceTest.testPublishEventWithSingleSubscriber(EventServiceTest.java:174)
+
